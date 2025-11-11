@@ -5,60 +5,79 @@ import librosa
 import whisper
 import threading
 import numpy as np
-from faster_whisper import WhisperModel
 import warnings
 warnings.filterwarnings("ignore")
 
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 44100
-CHUNKS = 1024 # frames_per_buffer
-p = pyaudio.PyAudio()
 
-recording = False
-model = whisper.load_model("small.en")  # use tiny.en, small.en, or base.en for English-only
-frames = []
-def record():
-    global frames
-    stream = p.open(
-        format = FORMAT,
-        channels = CHANNELS,
-        rate = RATE,
-        frames_per_buffer = CHUNKS,
-        input = True
-    )
-    # frames = []
-    frames.clear()
-    while recording:
-        try:
-            data = stream.read(
-            CHUNKS,
-            exception_on_overflow = False)
-            
-            data = np.frombuffer(data, dtype=np.int16).astype(np.float32)/32768.0
-            data = librosa.resample(data, orig_sr=44100, target_sr=16000)
-            frames.append(data)
-        except Exception as e:
-            print(e)
-            break
-    stream.stop_stream()
-    stream.close()
+class VoiceRecorder:
+    def __init__(self, FORMAT = pyaudio.paInt16,
+                 CHANNELS:int = 1,
+                 RATE:int = 44100,
+                 CHUNK:int = 1024):
+        
+        self._FORMAT = FORMAT
+        self._CHANNELS = CHANNELS
+        self._RATE = RATE
+        self._CHUNK = CHUNK
+        self._audio = pyaudio.PyAudio()
+        self._frames = []
+        self._recording = False
+        self._thread = None
+
+    def _record_loop(self):
+        stream = self._audio.open(
+            format = self._FORMAT,
+            channels = self._CHANNELS,
+            rate = self._RATE,
+            frames_per_buffer = self._CHUNK,
+            input = True
+        )
+        self._frames.clear()
+        while self._recording:
+            try:
+                data = stream.read(self._CHUNK, exception_on_overflow = False)
+                self._frames.append(data)
+            except Exception as e:
+                print("exception in record:",e)
+                break
+        stream.stop_stream()
+        stream.close()
+
+    def start(self):
+        if self._recording:
+            print("already recording")
+            return
+        self._recording = True
+        self._thread = threading.Thread(target = self._record_loop, daemon = True)
+        self._thread.start()
+        print("recording started...")
+
+    def stop(self):
+        if not self._recording:
+            print("Not recording")
+            return
+        self._recording = False
+        self._thread.join()
+        print("recording stopped.")
+
+    def get_audio(self):
+        if not self._frames:
+            print("No audio recorded")
+            return
+        return self._frames
+
+    def close(self):
+        self._audio.terminate()
 
 if __name__ == "__main__":
-    input("Enter to start the recording: ")
-    recording = True
-    task = threading.Thread(target = record, daemon = True)
-    task.start()
-    try:
-        input()
-    except KeyboardInterrupt:
-        print("exception")
-    finally:
-        recording =False
-        task.join()
-        p.terminate()
-        print(len(frames))
-        if frames:
-            frame = np.concatenate(frames)
-            result = model.transcribe(frame, language='english')
-            print(result.get("text"))
+    recorder = VoiceRecorder()
+    input("Press enter to start recording...")
+    recorder.start()
+    input("Press enter to stop recording...")
+    recorder.stop()
+    audio_data = recorder.get_audio()
+    print(len(audio_data))
+    for audio in audio_data:
+        print(audio)
+        break
+    recorder.close()
