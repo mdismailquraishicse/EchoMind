@@ -1,10 +1,5 @@
-import os
-import wave
 import pyaudio
-import librosa
-import whisper
 import threading
-import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -13,7 +8,8 @@ class VoiceRecorder:
     def __init__(self, FORMAT = pyaudio.paInt16,
                  CHANNELS:int = 1,
                  RATE:int = 44100,
-                 CHUNK:int = 1024):
+                 CHUNK:int = 1024,
+                 width:int = 2):
         
         self._FORMAT = FORMAT
         self._CHANNELS = CHANNELS
@@ -23,6 +19,7 @@ class VoiceRecorder:
         self._frames = []
         self._recording = False
         self._thread = None
+        self._WIDTH = width
 
     def _record_loop(self):
         stream = self._audio.open(
@@ -69,6 +66,14 @@ class VoiceRecorder:
     def close(self):
         self._audio.terminate()
 
+    def play_audio(self, audio_bytes):
+        
+        stream = self._audio.open(format=self._audio.get_format_from_width(self._WIDTH),
+                                  rate=self._RATE,
+                                  channels=self._CHANNELS,
+                                  output=True)
+        stream.write(audio_bytes)
+
 if __name__ == "__main__":
     recorder = VoiceRecorder()
     input("Press enter to start recording...")
@@ -76,8 +81,6 @@ if __name__ == "__main__":
     input("Press enter to stop recording...")
     recorder.stop()
     audio_data = recorder.get_audio()
-    print(len(audio_data))
-    for audio in audio_data:
-        print(audio)
-        break
+    audio_bytes = b"".join(audio_data)
+    recorder.play_audio(audio_bytes=audio_bytes)
     recorder.close()
