@@ -76,6 +76,9 @@ class VoiceRecorder:
                                   output=True)
         stream.write(audio_bytes)
 
+    def play_llm_as_audio(self, text):
+        pass
+
 if __name__ == "__main__":
     recorder = VoiceRecorder()
     voice_transcriptor = VoiceTranscriptor("tiny.en")
@@ -91,5 +94,8 @@ if __name__ == "__main__":
     start_time = time.time()
     print(len(audio_data))
     text = voice_transcriptor.transcribe(audio_bytes=audio_data)
+    answer = voice_transcriptor.get_answer(text)
+    voice_transcriptor.text_to_audio(answer)
+    print(answer)
     recorder.close()
     print("total time: ", time.time()-start_time)
