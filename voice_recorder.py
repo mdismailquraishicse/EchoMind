@@ -1,6 +1,8 @@
 import pyaudio
 import threading
 import warnings
+import time
+from voice_transcipter import VoiceTranscriptor
 warnings.filterwarnings("ignore")
 
 
@@ -76,11 +78,18 @@ class VoiceRecorder:
 
 if __name__ == "__main__":
     recorder = VoiceRecorder()
+    voice_transcriptor = VoiceTranscriptor("tiny.en")
     input("Press enter to start recording...")
     recorder.start()
     input("Press enter to stop recording...")
     recorder.stop()
     audio_data = recorder.get_audio()
+    ##########  play
     audio_bytes = b"".join(audio_data)
     recorder.play_audio(audio_bytes=audio_bytes)
+    ########## end play
+    start_time = time.time()
+    print(len(audio_data))
+    text = voice_transcriptor.transcribe(audio_bytes=audio_data)
     recorder.close()
+    print("total time: ", time.time()-start_time)
